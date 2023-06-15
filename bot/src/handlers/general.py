@@ -1,7 +1,7 @@
 from aiogram.dispatcher.filters import Text
 from aiogram import types
 from aiogram.dispatcher import FSMContext
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
+# from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 from ..misc import dp, bot
 
@@ -48,6 +48,26 @@ async def alert_about_deleting_meeting(rus_name_of_meeting):
     for user_id in base_of_users:
         text = f'Мероприятие \"{rus_name_of_meeting}\" удалено!'
         await bot.send_message(user_id[0], text=text)
+
+
+async def check_user_log(message):
+    user_id = message.from_user.id
+    if db.logged_verification(user_id) == 'logged':
+        return 0
+    else:
+        markup = navigation.start_menu()
+        await message.answer(text='Тебе нужно войти или зарегистрировться!', reply_markup=markup)
+        return 0
+
+
+async def check_user_role(message):
+    user_id = message.from_user.id
+    if db.get_user_role(user_id) != 'guest':
+        return 0
+    else:
+        markup = navigation.start_menu()
+        await message.answer(text='Тебе нужно войти или зарегистрировться!', reply_markup=markup)
+        return 0
 
 
 @dp.message_handler(commands=['start'])
@@ -1031,92 +1051,97 @@ async def enter_name_of_meeting(message: types.Message, state: FSMContext):
 @dp.message_handler(Text(words_from_main_handler))
 async def main_handler(message: types.Message):
     text_of_message = message.text
-    if text_of_message in ['Моя статистика', 'моя статистика', 'статистика']:
-        user_id = message.from_user.id
-        markup = user.get_markup(message.from_user.id)
-        text = functions.generate_ratings(user_id, 'volunteer')
-        await message.answer(text=text, reply_markup=markup)
+    user_id = message.from_user.id
 
-    elif text_of_message == 'Гость':
-        markup = navigation.guest_menu()
-        alert = messages.message_for_guest
-        await message.answer(text=alert, reply_markup=markup)
-        await message.delete()
-
-    elif text_of_message == 'Как работают баллы?':
-        user_id = message.from_user.id
-        markup = user.get_markup(user_id)
-        text = messages.information_about_points
-        await message.answer(text=text, parse_mode='HTML', reply_markup=markup)
-
-    elif text_of_message == 'Настройки':
-        markup = navigation.settings_menu()
-        await message.answer(text='Меню настроек', reply_markup=markup)
-
-    elif text_of_message in ['Профиль', 'профиль', 'меню', 'Назад']:
-        user_id = message.from_user.id
-        if db.logged_verification(user_id) == 'logged':
-            markup = user.get_markup(message.from_user.id)
-            await message.answer(text='Твой профиль', reply_markup=markup)
-        else:
+    if db.logged_verification(user_id) == 'logged':
+        if db.get_user_role(user_id) != "guest":
             markup = navigation.start_menu()
             await message.answer(text='Тебе нужно войти или зарегистрировться!', reply_markup=markup)
-
-    elif text_of_message == 'Меню мероприятий':
-        user_id = message.from_user.id
-        markup = user.open_additional_menu(user_id, 'meetings')
-        await message.answer(text='Меню мероприятий', reply_markup=markup)
-
-    elif text_of_message == 'Отметить участников':
-        user_id = message.from_user.id
-        if user.get_user_role(user_id) == "Employee":
-            markup = user.open_additional_menu(user_id, 'volunteer')
-            await message.answer(text='Отметить участников', reply_markup=markup)
         else:
-            markup = user.get_markup(user_id)
-            await message.answer(text='У тебя нет доступа!', reply_markup=markup)
+            if text_of_message in ['Моя статистика', 'моя статистика', 'статистика']:
+                markup = user.get_markup(message.from_user.id)
+                text = functions.generate_ratings(user_id, 'volunteer')
+                await message.answer(text=text, reply_markup=markup)
 
-    elif text_of_message == 'Список волонтеров':
-        user_id = message.from_user.id
-        role = user.get_user_role(user_id)
-        if role == "Employee":
-            list_of_volunteers = functions.show_volunteers_list()
-            markup = user.get_markup(message.from_user.id)
-            await message.answer(text=list_of_volunteers, reply_markup=markup)
-        else:
-            markup = user.get_markup(message.from_user.id)
-            await message.answer(text="У тебя нет доступа!", reply_markup=markup)
+            elif text_of_message == 'Гость':
+                markup = navigation.guest_menu()
+                alert = messages.message_for_guest
+                await message.answer(text=alert, reply_markup=markup)
+                await message.delete()
 
-    elif text_of_message == 'Рейтинг волонтеров':
-        user_id = message.from_user.id
-        role = user.get_user_role(user_id)
-        if role == "Employee":
-            volunteers_rating = functions.generate_ratings(user_id, role)
-            markup = user.get_markup(message.from_user.id)
-            await message.answer(text=volunteers_rating, reply_markup=markup)
-        else:
-            markup = user.get_markup(message.from_user.id)
-            await message.answer(text="У тебя нет доступа!", reply_markup=markup)
+            elif text_of_message == 'Как работают баллы?':
+                user_id = message.from_user.id
+                markup = user.get_markup(user_id)
+                text = messages.information_about_points
+                await message.answer(text=text, parse_mode='HTML', reply_markup=markup)
 
-    elif text_of_message == 'Список мероприятий':
-        user_id = str(message.from_user.id)
-        employee = user.get_user_role(user_id)
-        if employee:
-            list_of_meetings = functions.show_volunteers_meetings_lists(user_id, "show_notFinished_meetings")
-            answer = list_of_meetings
-            markup = user.get_markup(message.from_user.id)
-            await message.answer(text=answer, reply_markup=markup)
-        elif not employee:
-            list_of_meetings = functions.show_volunteers_meetings_lists(user_id, "available_meetings")
-            answer1 = list_of_meetings[0]
-            answer2 = list_of_meetings[1]
-            markup = user.get_markup(message.from_user.id)
-            await message.answer(text=answer1, reply_markup=markup)
-            await message.answer(text=answer2, reply_markup=markup)
-        else:
-            answer = 'Ой... Что-то пошло не так!'
-            markup = user.get_markup(message.from_user.id)
-            await message.answer(text=answer, reply_markup=markup)
+            elif text_of_message == 'Настройки':
+                markup = navigation.settings_menu()
+                await message.answer(text='Меню настроек', reply_markup=markup)
+
+            elif text_of_message in ['Профиль', 'профиль', 'меню', 'Назад']:
+                user_id = message.from_user.id
+                markup = user.get_markup(user_id)
+                await message.answer(text='Твой профиль', reply_markup=markup)
+
+            elif text_of_message == 'Меню мероприятий':
+                user_id = message.from_user.id
+                markup = user.open_additional_menu(user_id, 'meetings')
+                await message.answer(text='Меню мероприятий', reply_markup=markup)
+
+            elif text_of_message == 'Отметить участников':
+                user_id = message.from_user.id
+                if user.get_user_role(user_id) == "Employee":
+                    markup = user.open_additional_menu(user_id, 'volunteer')
+                    await message.answer(text='Отметить участников', reply_markup=markup)
+                else:
+                    markup = user.get_markup(user_id)
+                    await message.answer(text='У тебя нет доступа!', reply_markup=markup)
+
+            elif text_of_message == 'Список волонтеров':
+                user_id = message.from_user.id
+                role = user.get_user_role(user_id)
+                if role == "Employee":
+                    list_of_volunteers = functions.show_volunteers_list()
+                    markup = user.get_markup(message.from_user.id)
+                    await message.answer(text=list_of_volunteers, reply_markup=markup)
+                else:
+                    markup = user.get_markup(message.from_user.id)
+                    await message.answer(text="У тебя нет доступа!", reply_markup=markup)
+
+            elif text_of_message == 'Рейтинг волонтеров':
+                user_id = message.from_user.id
+                role = user.get_user_role(user_id)
+                if role == "Employee":
+                    volunteers_rating = functions.generate_ratings(user_id, role)
+                    markup = user.get_markup(message.from_user.id)
+                    await message.answer(text=volunteers_rating, reply_markup=markup)
+                else:
+                    markup = user.get_markup(message.from_user.id)
+                    await message.answer(text="У тебя нет доступа!", reply_markup=markup)
+
+            elif text_of_message == 'Список мероприятий':
+                user_id = str(message.from_user.id)
+                employee = user.get_user_role(user_id)
+                if employee:
+                    list_of_meetings = functions.show_volunteers_meetings_lists(user_id, "show_notFinished_meetings")
+                    answer = list_of_meetings
+                    markup = user.get_markup(message.from_user.id)
+                    await message.answer(text=answer, reply_markup=markup)
+                elif not employee:
+                    list_of_meetings = functions.show_volunteers_meetings_lists(user_id, "available_meetings")
+                    answer1 = list_of_meetings[0]
+                    answer2 = list_of_meetings[1]
+                    markup = user.get_markup(message.from_user.id)
+                    await message.answer(text=answer1, reply_markup=markup)
+                    await message.answer(text=answer2, reply_markup=markup)
+                else:
+                    answer = 'Ой... Что-то пошло не так!'
+                    markup = user.get_markup(message.from_user.id)
+                    await message.answer(text=answer, reply_markup=markup)
+    else:
+        markup = navigation.start_menu()
+        await message.answer(text='Тебе нужно войти или зарегистрировться!', reply_markup=markup)
 
 
 @dp.message_handler()
@@ -1127,8 +1152,8 @@ async def echo(message: types.Message):
                              reply_markup=markup)
     except Exception as error:
         print(error)
-        markup = navigation.greeting_menu()
-        await message.answer(text='Я тебя не помню, поприветствуйся! \nЕсли ты тут первый раз, напиши /start',
+        markup = navigation.start_menu()
+        await message.answer(text='Тебе нужно зарегистрироваться, напиши \'/start\'',
                              reply_markup=markup)
 
 
