@@ -1054,7 +1054,7 @@ async def main_handler(message: types.Message):
     user_id = message.from_user.id
 
     if db.logged_verification(user_id) == 'logged':
-        if db.get_user_role(user_id) != "guest":
+        if db.get_user_role(user_id) == "guest":
             markup = navigation.start_menu()
             await message.answer(text='Тебе нужно войти или зарегистрировться!', reply_markup=markup)
         else:
