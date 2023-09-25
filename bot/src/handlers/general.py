@@ -789,48 +789,57 @@ async def add_to_list_of_employers(message: types.Message):
 @dp.message_handler(state=AddEmployee.choose_user)
 async def choose_user(message: types.Message, state: FSMContext):
     message_data = message.text.split()
-    command = message_data[0]
-    number_of_user = message_data[1]
-    if number_of_user.isdigit():
-        number_of_user = int(number_of_user)
-        user_id_main = str(message.from_user.id)
-        if number_of_user in functions.dict_elements.get(user_id_main).keys():
-            user_id = functions.dict_elements.get(user_id_main).get(number_of_user)
-            functions.dict_elements.pop(user_id_main)
-            await state.update_data(user_id=user_id)
-            data = db.get_user_name_surname_points(user_id)
-            name, surname = data[0], data[1]
-            user_role = db.get_user_role(user_id)
-            if command == "Назначить":
-                if user_role == "Volunteer":
-                    await state.update_data(MODE=1)
-                    text = f"Ты хочешь назначить {name} {surname} работником?"
-                    markup = navigation.two_button_menu('Да', 'Нет', 1)
-                    await message.answer(text=text, reply_markup=markup)
-                    await AddEmployee.next()
-                else:
-                    markup = user.get_markup(message.from_user.id)
-                    await message.answer(text="Пользователь уже является работником!", reply_markup=markup)
-                    await state.finish()
-            elif command == "Разжаловать":
-                if user_role == "Employee":
-                    await state.update_data(MODE=2)
-                    text = f"Ты хочешь разжаловать {name} {surname}?"
-                    markup = navigation.two_button_menu('Да', 'Нет', 1)
-                    await message.answer(text=text, reply_markup=markup)
-                    await AddEmployee.next()
-                else:
-                    markup = user.get_markup(message.from_user.id)
-                    await message.answer(text="Пользователь уже является волонтером!", reply_markup=markup)
-                    await state.finish()
+    if len(message_data) == 2:
+        command = message_data[0]
+        number_of_user = message_data[1]
+        if number_of_user.isdigit():
+            number_of_user = int(number_of_user)
+            user_id_main = str(message.from_user.id)
+            if number_of_user in functions.dict_elements.get(user_id_main).keys():
+                user_id = functions.dict_elements.get(user_id_main).get(number_of_user)
+                functions.dict_elements.pop(user_id_main)
+                await state.update_data(user_id=user_id)
+                data = db.get_user_name_surname_points(user_id)
+                name, surname = data[0], data[1]
+                user_role = db.get_user_role(user_id)
+                if command == "Назначить":
+                    if user_role == "Volunteer":
+                        await state.update_data(MODE=1)
+                        text = f"Ты хочешь назначить {name} {surname} работником?"
+                        markup = navigation.two_button_menu('Да', 'Нет', 1)
+                        await message.answer(text=text, reply_markup=markup)
+                        await AddEmployee.next()
+                    else:
+                        markup = user.get_markup(message.from_user.id)
+                        await message.answer(text="Пользователь уже является работником!", reply_markup=markup)
+                        await state.finish()
+                elif command == "Разжаловать":
+                    if user_role == "Employee":
+                        await state.update_data(MODE=2)
+                        text = f"Ты хочешь разжаловать {name} {surname}?"
+                        markup = navigation.two_button_menu('Да', 'Нет', 1)
+                        await message.answer(text=text, reply_markup=markup)
+                        await AddEmployee.next()
+                    else:
+                        markup = user.get_markup(message.from_user.id)
+                        await message.answer(text="Пользователь уже является волонтером!", reply_markup=markup)
+                        await state.finish()
+            else:
+                markup = user.get_markup(message.from_user.id)
+                await message.answer(text="Такого пользователя нет в списке!", reply_markup=markup)
+                await state.finish()
+
         else:
             markup = user.get_markup(message.from_user.id)
-            await message.answer(text="Такого пользователя нет в списке!", reply_markup=markup)
+            await message.answer(text="Пользователь не добавлен!", reply_markup=markup)
             await state.finish()
-
+    elif len(message_data) == 1 and message_data[0] == "Назад":
+        markup = user.get_markup(message.from_user.id)
+        await message.answer(text='Главное меню', reply_markup=markup)
+        await state.finish()
     else:
         markup = user.get_markup(message.from_user.id)
-        await message.answer(text="Пользователь не добавлен!", reply_markup=markup)
+        await message.answer(text='Ой, что-то пошло не так!', reply_markup=markup)
         await state.finish()
 
 
