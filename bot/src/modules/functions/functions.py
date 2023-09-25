@@ -106,6 +106,27 @@ class Functions:
         db.set_users_surname(user_id, surname)
         db.set_users_student_id(user_id, student_id)
 
+    def get_list_of_all_users(self, user_id_main):
+        roles_dict = {
+            "Employee": "Работник",
+            "Volunteer": "Волонтер"
+        }
+        data = db.list_of_all_users()
+        number = 1
+        data = sorted(data)
+        user_id_main = str(user_id_main)
+        self.dict_elements[user_id_main] = {}
+        result = "Выберите участника:\n"
+        for participant in data:
+            user_id = participant[2]
+            user_role = roles_dict.get(db.get_user_role(user_id))
+            name = participant[1]
+            surname = participant[0]
+            self.dict_elements[user_id_main][number] = int(user_id)
+            result += f"{number}. {surname} {name} - {user_role}\n"
+            number += 1
+        return result
+
     def show_volunteers_meetings_lists(self, user_id, type_of_list: str):
         """Бывшая show_meetings_list_volunteer
 

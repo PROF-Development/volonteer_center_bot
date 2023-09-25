@@ -35,7 +35,7 @@ class DataBase:
 
     def list_of_all_users(self):
         with self.connection:
-            list_of_users = self.cursor.execute("SELECT user_id FROM users;").fetchall()
+            list_of_users = self.cursor.execute("SELECT surname,name,user_id FROM personal_data WHERE name <> 'NAME' AND surname <> 'SURNAME';").fetchall()
         return list_of_users
 
     def count_of_users(self):

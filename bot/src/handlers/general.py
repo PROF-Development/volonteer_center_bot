@@ -768,16 +768,16 @@ async def creating_qr(message: types.Message, state: FSMContext):
     await state.finish()
 
 
-@dp.message_handler(Text('Назначить работником'), state=None)
+@dp.message_handler(Text('Назначить/разжаловать работника'), state=None)
 async def add_to_list_of_employers(message: types.Message):
     user_id = str(message.from_user.id)
     role = user.get_user_role(user_id)
     if role == "Employee":
-        list_of_volunteers = functions.show_users_list(user_id)
+        list_of_users = functions.get_list_of_all_users(user_id)
         markup = navigation.button_list()
 
-        await message.answer(text=list_of_volunteers, reply_markup=markup)
-        await message.answer(text="Введи число:",
+        await message.answer(text=list_of_users, reply_markup=markup)
+        await message.answer(text="Введи действие и номер человека в списке:\nПример:\n\"Разжаловать 1\"\n\"Назначить 2\"",
                              reply_markup=markup)
         await AddEmployee.next()
     else:
@@ -787,24 +787,46 @@ async def add_to_list_of_employers(message: types.Message):
 
 @dp.message_handler(state=AddEmployee.choose_user)
 async def choose_user(message: types.Message, state: FSMContext):
-    if message.text.isdigit():
+    message_data = message.text.split()
+    command = message_data[0]
+    number_of_user = message_data[1]
+    if number_of_user.isdigit():
+        number_of_user = int(number_of_user)
         user_id_main = str(message.from_user.id)
-        number_of_user = int(message.text)
         if number_of_user in functions.dict_elements.get(user_id_main).keys():
             user_id = functions.dict_elements.get(user_id_main).get(number_of_user)
             functions.dict_elements.pop(user_id_main)
             await state.update_data(user_id=user_id)
             data = db.get_user_name_surname_points(user_id)
             name, surname = data[0], data[1]
-
-            text = f"Ты хочешь назначить {name} {surname} работником?"
-            markup = navigation.two_button_menu('Да', 'Нет', 1)
-            await message.answer(text=text, reply_markup=markup)
-            await AddEmployee.next()
+            user_role = db.get_user_role(user_id)
+            if command == "Назначить":
+                if user_role == "Volunteer":
+                    await state.update_data(MODE=1)
+                    text = f"Ты хочешь назначить {name} {surname} работником?"
+                    markup = navigation.two_button_menu('Да', 'Нет', 1)
+                    await message.answer(text=text, reply_markup=markup)
+                    await AddEmployee.next()
+                else:
+                    markup = user.get_markup(message.from_user.id)
+                    await message.answer(text="Пользователь уже является работником!", reply_markup=markup)
+                    await state.finish()
+            elif command == "Разжаловать":
+                if user_role == "Employee":
+                    await state.update_data(MODE=2)
+                    text = f"Ты хочешь разжаловать {name} {surname}?"
+                    markup = navigation.two_button_menu('Да', 'Нет', 1)
+                    await message.answer(text=text, reply_markup=markup)
+                    await AddEmployee.next()
+                else:
+                    markup = user.get_markup(message.from_user.id)
+                    await message.answer(text="Пользователь уже является волонтером!", reply_markup=markup)
+                    await state.finish()
         else:
             markup = user.get_markup(message.from_user.id)
             await message.answer(text="Такого пользователя нет в списке!", reply_markup=markup)
             await state.finish()
+
     else:
         markup = user.get_markup(message.from_user.id)
         await message.answer(text="Пользователь не добавлен!", reply_markup=markup)
@@ -817,20 +839,30 @@ async def confirmation(message: types.Message, state: FSMContext):
     markup = user.get_markup(message.from_user.id)
     data = await state.get_data()
     user_id = data.get('user_id')
+    mode = data.get('MODE')
     if answer == 'Да':
-        db.set_role('Employee', user_id)
-        await message.answer(text='Пользователь теперь работник!', reply_markup=markup)
-        await state.finish()
+        if mode == 1:
+            db.set_role('Employee', user_id)
+            await message.answer(text='Пользователь теперь работник!', reply_markup=markup)
+            await state.finish()
+        elif mode == 2:
+            db.set_role('Volunteer', user_id)
+            await message.answer(text='Пользователь теперь волонтер!', reply_markup=markup)
+            await state.finish()
     else:
-        await message.answer(text='Пользователь остался волонтером!', reply_markup=markup)
-        await state.finish()
+        if mode == 1:
+            await message.answer(text='Пользователь остался волонтером!', reply_markup=markup)
+            await state.finish()
+        elif mode == 2:
+            await message.answer(text='Пользователь остался работником!', reply_markup=markup)
+            await state.finish()
 
 
 @dp.message_handler(Text('Меню отметок'), state=None)
 async def try_to_confirm_join(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     if user.get_user_role(user_id):
-        markup = navigation.two_button_menu('Присутствующие', 'Ушли раньше', 1)
+        markup = navigation.two_button_menu('Присутствующие', 'Ушли раньше/Опоздали', 1)
         await message.answer(text="Выбери нужное меню", reply_markup=markup)
         await ConfirmAttend.next()
 
@@ -849,7 +881,7 @@ async def get_username_for_confirm_attend(message: types.Message, state: FSMCont
         markup = navigation.employee_profile_menu()
         await message.answer(text='Твой профиль', reply_markup=markup)
         await state.finish()
-    elif message.text == 'Присутствующие' or message.text == 'Ушли раньше':
+    elif message.text == 'Присутствующие' or message.text == 'Ушли раньше/Опоздали':
         markup = navigation.button_list()
 
         text = functions.show_volunteers_meetings_lists(user_id, "meetings_for_confirmation")

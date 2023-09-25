@@ -29,7 +29,7 @@ class Navigation:
         menu_meetings_meetings = self.button('Меню мероприятий')
         menu_meetings_volunteers = self.button('Отметить участников')
         show_list_of_volunteers = self.button('Список волонтеров')
-        add_employee = self.button('Назначить работником')
+        add_employee = self.button('Назначить/разжаловать работника')
         ratings_button = self.button('Рейтинг волонтеров')
         settings_button = self.button('Настройки')
 
