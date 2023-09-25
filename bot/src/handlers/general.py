@@ -44,6 +44,7 @@ words_from_main_handler = ['Моя статистика', 'моя статист
 
 
 async def alert_about_deleting_meeting(rus_name_of_meeting):
+    # TODO: сделать рассыдку не по всем людям, во время тестирования
     base_of_users = db.list_of_all_users()
     for user_id in base_of_users:
         text = f'Мероприятие \"{rus_name_of_meeting}\" удалено!'
@@ -52,7 +53,7 @@ async def alert_about_deleting_meeting(rus_name_of_meeting):
 
 async def check_user_log(message):
     user_id = message.from_user.id
-    if db.logged_verification(user_id) == 'logged':
+    if db.logged_verification(user_id)[0] == 'logged':
         return 0
     else:
         markup = navigation.start_menu()
@@ -74,7 +75,7 @@ async def check_user_role(message):
 async def start(message: types.Message):
     text_greeting = f'Привет {message.from_user.first_name}!'
     user_id = message.from_user.id
-    if db.logged_verification(user_id):
+    if db.logged_verification(user_id) is not None:
         markup = user.get_markup(user_id)
         await message.answer(text=text_greeting)
         await message.answer(text="Ты можешь перейти в наши сообщества, чтобы получить больше полезной информации 😉")
@@ -111,7 +112,7 @@ async def ask_for_login(message: types.Message, state: FSMContext):
         await Registration.next()
     elif message.text == 'Нет':
         markup = navigation.guest_menu()
-        await message.answer(text='Предлагаю посетить гостевую вкладку, чтобы узнать подробнее про бота!',
+        await message.answer(text='Предлагаю посетить гостевую вкладку, чтобы узнать подробнее про волонтерство!',
                              reply_markup=markup)
         await state.finish()
     elif message.text == 'Назад':
@@ -1085,7 +1086,7 @@ async def main_handler(message: types.Message):
     text_of_message = message.text
     user_id = message.from_user.id
 
-    if db.logged_verification(user_id) == 'logged':
+    if db.logged_verification(user_id)[0] == 'logged':
         if db.get_user_role(user_id) == "guest":
             markup = navigation.start_menu()
             await message.answer(text='Тебе нужно войти или зарегистрировться!', reply_markup=markup)

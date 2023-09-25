@@ -54,7 +54,7 @@ class DataBase:
         with self.connection:
             result = self.cursor.execute("SELECT logged FROM users WHERE user_id = ?;",
                                          (user_id,)).fetchone()
-            return result[0]
+            return result
 
     def add_user(self, login, role, password, user_id, ID):
         with self.connection:
